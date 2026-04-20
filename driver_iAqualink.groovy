@@ -3,7 +3,7 @@ metadata {
             name: "iAqualink",
             namespace: "iAqualink",
             author: "Vyrolan Google Sheet Integration by Thaeropath",
-            importUrl: "https://raw.githubusercontent.com/thaeropath/iaqualink/main/user_driver_iAqualink_iAqualink_1433.groovy"
+            importUrl: "https://raw.githubusercontent.com/thaeropath/iaqualink/main/driver_iAqualink.groovy"
     ) {
         capability "Initialize"
         capability "Refresh"
