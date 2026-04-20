@@ -219,6 +219,21 @@ metadata {
                     defaultValue: 15
             )
         }
+        section("Google Sheets Integration:") {
+            input(
+                    name: "googleSheetsEnabled",
+                    type: "bool",
+                    title: "Enable Google Sheets Temperature Logging",
+                    description: "When enabled, pool temperature readings are POSTed to a Google Apps Script Web App each update cycle. Requires 'Enable Pool Temp Sensor' to be turned on.",
+                    defaultValue: false
+            )
+            input(
+                    name: "googleSheetsUrl",
+                    type: "string",
+                    title: "Apps Script Web App URL",
+                    description: "Deploy a Google Apps Script Web App and paste its URL here. See driver source for the required Apps Script code."
+            )
+        }
     }
 }
 
@@ -544,6 +559,52 @@ void updateChildHeater(String key, String status, String freezeProtect, Integer 
     child.updateState(status, freezeProtect, current, target, configTempScale, iaqualinkTempScale)
 }
 
+/*
+ * Google Apps Script for the Web App (Extensions > Apps Script in Google Sheets):
+ *
+ *   function doPost(e) {
+ *     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ *     var data = JSON.parse(e.postData.contents);
+ *     sheet.appendRow([data.timestamp, data.temperature, data.unit, data.device_label]);
+ *     return ContentService.createTextOutput("OK");
+ *   }
+ *
+ * Deploy: New Deployment > Web App. "Execute as" = Me, "Who has access" = Anyone.
+ * Copy the Web App URL into the driver preference above.
+ */
+void logPoolTempToGoogleSheets(Integer temp, String scale) {
+    if (!settings.googleSheetsEnabled) return
+    if (!settings.googleSheetsUrl) {
+        warnLog("Google Sheets logging is enabled but no Web App URL is configured.")
+        return
+    }
+
+    def label = device.label ?: device.name
+    def payload = [
+            timestamp   : new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX"),
+            temperature : temp,
+            unit        : scale,
+            device_label: label
+    ]
+
+    def params = [
+            uri                : settings.googleSheetsUrl,
+            requestContentType : "application/json",
+            body               : groovy.json.JsonOutput.toJson(payload)
+    ]
+
+    try {
+        httpPost(params) { response ->
+            if (response?.status == 200 || response?.status == 302)
+                debugLog("Pool temp logged to Google Sheets: ${temp}${scale}")
+            else
+                warnLog("Google Sheets logging returned unexpected status: ${response?.status}")
+        }
+    } catch (Exception e) {
+        warnLog("Google Sheets logging failed (will not retry): ${e.message}")
+    }
+}
+
 void updateStates() {
     if (!ensureLogin()) {
         errorLog("Unable to update device states due to failed login.")
@@ -628,6 +689,8 @@ void updateStates() {
     sendEvent(name: "spa_temp", value: currentSpaTemp, unit: tempScale)
     updateChildState("AirTemp", currentAirTemp as String)
     updateChildState("PoolTemp", currentPoolTemp as String)
+    if (settings.poolTemp)
+        logPoolTempToGoogleSheets(currentPoolTemp, tempScale)
     updateChildState("SpaTemp", currentSpaTemp as String)
 
     if (settings.poolHeater)
