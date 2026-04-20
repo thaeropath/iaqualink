@@ -5,37 +5,17 @@ metadata {
             author: "Vyrolan",
             importUrl: "https://raw.githubusercontent.com/Vyrolan/iAqualink-Hubitat/main/iAqualink-Heater.groovy"
     ) {
-        capability "Thermostat"
+        capability "TemperatureMeasurement"
         capability "Refresh"
 
-        /*
-        Thermostat Attributes
-        coolingSetpoint - NUMBER, unit:°F || °C
-        heatingSetpoint - NUMBER, unit:°F || °C
-        schedule - JSON_OBJECT (Deprecated)
-        supportedThermostatFanModes - JSON_OBJECT
-        supportedThermostatModes - JSON_OBJECT
-        temperature - NUMBER, unit:°F || °C
-        thermostatFanMode - ENUM ["on", "circulate", "auto"]
-        thermostatMode - ENUM ["auto", "off", "heat", "emergency heat", "cool"]
-        thermostatOperatingState - ENUM ["heating", "pending cool", "pending heat", "vent economizer", "idle", "cooling", "fan only"]
-        thermostatSetpoint - NUMBER, unit:°F || °C
-        */
-        /*
-        Thermostat Commands
-        auto()
-        cool()
-        emergencyHeat()
-        fanAuto()
-        fanCirculate()
-        fanOn()
-        heat()
-        off()
-        setCoolingSetpoint(temperature)
-        setHeatingSetpoint(temperature)
-        setThermostatFanMode(fanmode)
-        setThermostatMode(thermostatmode)
-         */
+        attribute "heatingSetpoint", "number"
+        attribute "thermostatMode", "enum", ["off", "heat", "emergency heat"]
+        attribute "thermostatOperatingState", "enum", ["idle", "pending heat", "heating"]
+
+        command "heat"
+        command "off"
+        command "setHeatingSetpoint", [[name: "temperature*", type: "NUMBER"]]
+        command "setThermostatMode", [[name: "mode*", type: "ENUM", constraints: ["heat", "off"]]]
     }
 
     preferences {
@@ -79,11 +59,6 @@ void installed() {
         runIn(settings.autoDisableInfoLog * 60, disableInfoLog)
 
     state.heaterEnabled = false
-
-    sendEvent(name: 'supportedThermostatModes', value: ['off', 'heat', 'emergency heat'])
-    sendEvent(name: 'supportedThermostatFanModes', value: ['auto'])
-    sendEvent(name: 'thermostatFanMode', value: 'auto')
-    sendEvent(name: 'coolingSetpoint', value: 0)
 
     sendEvent(name: "temperature", value: 0)
     sendEvent(name: "heatingSetpoint", value: 0)
@@ -161,25 +136,10 @@ void updateState(String heaterStatus, String freezeProtect, Integer currentTemp,
     sendEvent(name: "heatingSetpoint", value: targetTemp, unit: configTempScale)
 }
 
-// Thermostat Capability Methods
-void auto() { debugLog("Auto mode is not supported for iAqualink Heater.") }
-void cool() { debugLog("Cool mode is not supported for iAqualink Heater.") }
-void emergencyHeat() { debugLog("Explicitly setting Emergency Heat mode is not supported...the iAqualink Heater will be in emergency heating when freeze protection is active.") }
-void fanAuto() { debugLog("Fan operations are not supported for iAqualink Heater. ") }
-void fanCirculate() { debugLog("Fan operations are not supported for iAqualink Heater. ") }
-void fanOn() { debugLog("Fan operations are not supported for iAqualink Heater. ") }
-void setThermostatFanMode(fanmode) { debugLog("Fan operations are not supported for iAqualink Heater. ") }
-void setCoolingSetpoint(temperature) { debugLog("Cooling is not supported for iAqualink Heater.") }
-
-void setThermostatMode(thermostatmode) {
-    if (thermostatmode != "off" && thermostatmode != "heat") {
-        warnLog("Thermostat mode '${thermostatmode}' not supported for iAqualink Heater.")
-        return
-    }
-
+void setThermostatMode(String thermostatmode) {
     if (thermostatmode == "off")
         off()
-    else // if (thermostatmode == "heat")
+    else
         heat()
 }
 
@@ -207,7 +167,7 @@ void off() {
         debugLog("${device.name} is already disabled")
         return
     }
-    def msg ="Disabling ${device.name}"
+    def msg = "Disabling ${device.name}"
     infoLog(msg)
     parent.doCommand(msg, "set_${state.heaterType}_heater")
     sendEvent(name: 'thermostatMode', value: "off")
