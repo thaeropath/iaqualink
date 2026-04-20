@@ -157,8 +157,8 @@ void updateState(String heaterStatus, String freezeProtect, Integer currentTemp,
     state.tempScale = configTempScale
     state.iaqualinkTempScale = iaqualinkTempScale
 
-    sendEvent(name: "temperature", value: currentTemp, unit: tempScale)
-    sendEvent(name: "heatingSetpoint", value: targetTemp, unit: tempScale)
+    sendEvent(name: "temperature", value: currentTemp, unit: configTempScale)
+    sendEvent(name: "heatingSetpoint", value: targetTemp, unit: configTempScale)
 }
 
 // Thermostat Capability Methods
