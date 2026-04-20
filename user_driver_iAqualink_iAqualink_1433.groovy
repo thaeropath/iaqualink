@@ -2,7 +2,7 @@ metadata {
     definition(
             name: "iAqualink",
             namespace: "iAqualink",
-            author: "Vyrolan",
+            author: "Vyrolan Google Sheet Integration by Thaeropath",
             importUrl: "https://raw.githubusercontent.com/Vyrolan/iAqualink-Hubitat/main/iAqualink.groovy"
     ) {
         capability "Initialize"
